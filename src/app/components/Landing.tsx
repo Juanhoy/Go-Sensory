@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Apple } from "lucide-react";
 import { toast } from "sonner";
-import { auth } from "../lib/firebase";
+import { auth } from "../../lib/firebase";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { saveUserProfile } from "../services/dbService";
+import { saveUserProfile } from "../../services/dbService";
 
 type UserType = "therapist" | "caregiver";
 
