@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Apple } from "lucide-react";
 import { toast } from "sonner";
+import { auth } from "../lib/firebase";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { saveUserProfile } from "../services/dbService";
 
 type UserType = "therapist" | "caregiver";
 
@@ -18,6 +21,34 @@ export function Landing() {
       navigate("/therapist/home");
     } else {
       navigate("/caregiver/home");
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Save user profile to Firestore
+      await saveUserProfile(user.uid, {
+        name: user.displayName,
+        email: user.email,
+        photoURL: user.photoURL,
+        userType: userType, // Save the selected user type
+        lastLogin: new Date().toISOString(),
+      });
+
+      toast.success(`Welcome ${user.displayName}!`);
+      
+      if (userType === "therapist") {
+        navigate("/therapist/home");
+      } else {
+        navigate("/caregiver/home");
+      }
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Failed to login with Google");
     }
   };
 
@@ -118,7 +149,7 @@ export function Landing() {
 
         <button
           type="button"
-          onClick={() => toast.info("Social login coming soon!")}
+          onClick={handleGoogleLogin}
           className="w-full border-2 border-[#5C5C8A] rounded-full py-3 flex items-center justify-center gap-3 bg-white"
         >
           <svg className="w-6 h-6" viewBox="0 0 24 24">
