@@ -32,23 +32,13 @@ export function Landing() {
   return (
     <div className="min-h-screen bg-[#F5F2ED] flex flex-col items-center justify-center px-6">
       {/* Logo and Tagline */}
-      <div className="mb-8 text-center">
-        <p className="text-[#9BC9BB] text-sm mb-4">Ready, set</p>
-        <div className="flex items-center justify-center gap-2">
-          <svg width="80" height="60" viewBox="0 0 80 60" className="text-[#9BC9BB]">
-            <path
-              d="M20 15C15 15 10 20 10 28C10 36 15 45 25 48C30 50 35 48 38 45C40 50 45 53 50 53C58 53 65 46 65 38C65 30 58 23 50 23C48 23 46 24 44 25C42 18 36 15 30 15C25 15 22 17 20 20C18 17 15 15 12 15C8 15 5 18 5 22C5 26 8 29 12 29C15 29 18 26 18 22V20C19 18 20 17 22 17C24 17 25 18 25 20V25C25 30 20 35 15 35C10 35 5 30 5 25C5 20 10 15 15 15Z"
-              fill="currentColor"
-              opacity="0.3"
-            />
-          </svg>
-          <div>
-            <div className="text-4xl text-[#9BC9BB]">
-              <span className="font-bold">go</span>
-              <span className="ml-1">sensory</span>
-            </div>
-          </div>
-        </div>
+      <div className="mb-12 flex flex-col items-center">
+        <p className="text-[#9BC9BB] text-sm mb-6">Ready, set</p>
+        <img 
+          src="/img/gosensorylogo.png" 
+          alt="Go Sensory Logo" 
+          className="w-48 h-auto object-contain"
+        />
       </div>
 
       <form onSubmit={handleLogin} className="w-full max-w-md space-y-4">

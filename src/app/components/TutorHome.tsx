@@ -110,11 +110,13 @@ export function TutorHome() {
     <div className="min-h-screen pb-24 bg-[#F5F2ED]">
       {/* Header */}
       <div className="px-4 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="text-2xl text-[#9BC9BB]">
-            <span className="font-bold">go</span>
-            <span className="ml-1">sensory</span>
-          </div>
+        <div className="flex items-center">
+          <img 
+            src="/img/gosensorylogo.png" 
+            alt="Go Sensory" 
+            className="h-10 w-auto object-contain cursor-pointer"
+            onClick={() => navigate("/caregiver/home")}
+          />
         </div>
         <div className="flex items-center gap-2">
           <button

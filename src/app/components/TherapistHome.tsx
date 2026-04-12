@@ -43,20 +43,13 @@ export function TherapistHome() {
     <div className="min-h-screen pb-24">
       {/* Header */}
       <div className="px-4 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <svg width="40" height="40" viewBox="0 0 40 40" className="text-[#9BC9BB]">
-            <path
-              d="M20 8C15 8 12 12 12 16C12 20 15 24 20 24C25 24 28 20 28 16C28 12 25 8 20 8Z"
-              fill="currentColor"
-              opacity="0.6"
-            />
-            <text x="35" y="25" fontSize="14" fill="currentColor">
-              go
-            </text>
-            <text x="10" y="35" fontSize="8" fill="currentColor">
-              sensory
-            </text>
-          </svg>
+        <div className="flex items-center">
+          <img 
+            src="/img/gosensorylogo.png" 
+            alt="Go Sensory" 
+            className="h-10 w-auto object-contain cursor-pointer"
+            onClick={() => navigate("/therapist/home")}
+          />
         </div>
         <div className="flex items-center gap-2">
           <button
