@@ -4,17 +4,34 @@ import {
   getDocs, 
   doc, 
   updateDoc, 
-  deleteDoc, 
+  setDoc,
   query, 
   where,
   onSnapshot
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 
+// --- Users & Profiles ---
+export const usersCollection = collection(db, "users");
+
+export const saveUserProfile = async (userId: string, data: any) => {
+  const userRef = doc(db, "users", userId);
+  return setDoc(userRef, data, { merge: true });
+};
+
 // --- Patients ---
 export const patientsCollection = collection(db, "patients");
 
-export const addPatient = (patientData: any) => addDoc(patientsCollection, patientData);
+export const addPatient = (patientData: {
+  therapistId: string;
+  name: string;
+  age: number;
+  dateOfBirth: string;
+  tutorName: string;
+  tutorContact: string;
+  location: string;
+  profilePicture?: string;
+}) => addDoc(patientsCollection, patientData);
 
 export const getPatientsByTherapist = async (therapistId: string) => {
   const q = query(patientsCollection, where("therapistId", "==", therapistId));
@@ -30,19 +47,44 @@ export const getAllExercises = async () => {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
+// --- Diet Calendars ---
+export const dietsCollection = collection(db, "diets");
+
+export const saveDietEntry = (dietData: {
+  patientId: string;
+  date: string;
+  mealType: "Breakfast" | "Lunch" | "Dinner" | "Snack";
+  foods: string[];
+  notes?: string;
+}) => addDoc(dietsCollection, dietData);
+
+export const listenToPatientDiet = (patientId: string, callback: (data: any) => void) => {
+  const q = query(dietsCollection, where("patientId", "==", patientId));
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  });
+};
+
 // --- Agendas & Schedules ---
 export const agendaCollection = collection(db, "agendas");
 
 export const scheduleExercise = (scheduleData: {
   exerciseId: string;
   patientId: string;
+  therapistId: string;
   startTime: string;
+  date: string;
   repeats: string[];
   status: "Pending" | "Done" | "Missed" | "On Course";
 }) => addDoc(agendaCollection, scheduleData);
 
-export const listenToTherapistAgenda = (therapistId: string, callback: (data: any) => void) => {
-  const q = query(agendaCollection, where("therapistId", "==", therapistId));
+export const listenToTherapistAgenda = (therapistId: string, patientId?: string, callback?: (data: any) => void) => {
+  let q = query(agendaCollection, where("therapistId", "==", therapistId));
+  if (patientId) {
+    q = query(agendaCollection, where("therapistId", "==", therapistId), where("patientId", "==", patientId));
+  }
+  
+  if (!callback) return;
   return onSnapshot(q, (snapshot) => {
     const agenda = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(agenda);
