@@ -1,22 +1,32 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, MoreVertical, Plus } from "lucide-react";
+import { ArrowLeft, MoreVertical, Plus, User } from "lucide-react";
 import { BottomNav } from "./BottomNav";
-import { patients } from "../data/mockData";
-import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { toast } from "sonner";
-
-const patientImages = [
-  "https://images.unsplash.com/photo-1644966825640-bf597f873b89?w=200",
-  "https://images.unsplash.com/photo-1716936210182-d3b7af967b04?w=200",
-  "https://images.unsplash.com/photo-1768844871840-26f6ed6a8e39?w=200",
-  "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=200",
-  "https://images.unsplash.com/photo-1588183719635-fc89a88e5e2c?w=200",
-];
+import { auth } from "../../lib/firebase";
+import { getPatientsByTherapist } from "../../services/dbService";
 
 export function MyPatients() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const [patientList, setPatientList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPatients = async () => {
+      const user = auth.currentUser;
+      if (user) {
+        const data = await getPatientsByTherapist(user.uid);
+        setPatientList(data);
+      }
+      setLoading(false);
+    };
+    fetchPatients();
+  }, []);
+
+  const filteredPatients = patientList.filter(p => 
+    p.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen pb-24">
@@ -44,25 +54,40 @@ export function MyPatients() {
 
       {/* Patient List */}
       <div className="px-4 space-y-3">
-        {patients.map((patient, idx) => (
-          <button
-            key={patient.id}
-            onClick={() => navigate(`/therapist/patients/${patient.id}`)}
-            className="w-full bg-[#F0EBE3] rounded-2xl p-4 flex items-center gap-4"
-          >
-            <ImageWithFallback
-              src={patientImages[idx % patientImages.length]}
-              alt={patient.name}
-              className="w-16 h-16 rounded-full object-cover"
-            />
-            <div className="flex-1 text-left">
-              <h3 className="mb-1">{patient.name}</h3>
-              <p className="text-sm text-gray-600">{patient.age} años</p>
-              <p className="text-sm text-gray-600">{patient.dateOfBirth}</p>
-            </div>
-            <MoreVertical className="w-5 h-5" />
-          </button>
-        ))}
+        {loading ? (
+          <p className="text-center text-gray-500 py-8">Loading patients...</p>
+        ) : filteredPatients.length > 0 ? (
+          filteredPatients.map((patient) => (
+            <button
+              key={patient.id}
+              onClick={() => navigate(`/therapist/patients/${patient.id}`)}
+              className="w-full bg-[#F0EBE3] rounded-2xl p-4 flex items-center gap-4"
+            >
+              {patient.profilePicture ? (
+                <img
+                  src={patient.profilePicture}
+                  alt={patient.name}
+                  className="w-16 h-16 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
+                  <User className="w-8 h-8 text-gray-400" />
+                </div>
+              )}
+              <div className="flex-1 text-left">
+                <h3 className="mb-1">{patient.name}</h3>
+                <p className="text-sm text-gray-600">{patient.age} years old</p>
+                <p className="text-sm text-gray-600">{patient.dateOfBirth}</p>
+              </div>
+              <MoreVertical className="w-5 h-5" />
+            </button>
+          ))
+        ) : (
+          <div className="text-center py-12">
+            <User className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500">No patients found</p>
+          </div>
+        )}
       </div>
 
       {/* FAB */}
