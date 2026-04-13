@@ -5,7 +5,7 @@ import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { toast } from "sonner";
 import { BottomNav } from "./BottomNav";
 import { auth } from "../../lib/firebase";
-import { deleteUser, signOut } from "firebase/auth";
+import { deleteUser, signOut, updateProfile } from "firebase/auth";
 import { deleteUserAccount, getUserProfile, saveUserProfile, uploadMediaToCloudinary } from "../../services/dbService";
 import { useEffect } from "react";
 
@@ -75,14 +75,19 @@ export function MyProfile({ userType = "therapist" }: MyProfileProps) {
           const newPhotoUrl = result.secure_url;
           
           if (auth.currentUser) {
+            // Update Firestore
             await saveUserProfile(auth.currentUser.uid, { photoURL: newPhotoUrl });
+            
+            // Update Firebase Auth Profile (for BottomNav sync)
+            await updateProfile(auth.currentUser, { photoURL: newPhotoUrl });
+            
             setProfileData((prev: any) => ({ ...prev, photoURL: newPhotoUrl }));
             toast.dismiss(loadingToast);
             toast.success("Photo updated!");
           }
-        } catch (error) {
+        } catch (error: any) {
           toast.dismiss(loadingToast);
-          toast.error("Upload failed");
+          toast.error(error.message || "Upload failed");
         }
       }
     };
