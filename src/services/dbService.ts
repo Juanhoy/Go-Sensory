@@ -114,11 +114,17 @@ export const listenToPatientSchedule = (patientId: string, callback: (data: any)
 
 // --- Media Logic (Cloudinary) ---
 export const uploadMediaToCloudinary = async (file: File) => {
+  const preset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+
+  if (!preset || preset === "your_upload_preset_here") {
+    throw new Error("Cloudinary Upload Preset is missing or not configured in .env");
+  }
+
   const formData = new FormData();
   formData.append("file", file);
-  formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "");
+  formData.append("upload_preset", preset);
 
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
   const url = `https://api.cloudinary.com/v1_1/${cloudName}/upload`;
 
   const response = await fetch(url, {
@@ -126,5 +132,10 @@ export const uploadMediaToCloudinary = async (file: File) => {
     body: formData,
   });
 
-  return response.json();
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error?.message || "Cloudinary upload failed");
+  }
+
+  return data;
 };
