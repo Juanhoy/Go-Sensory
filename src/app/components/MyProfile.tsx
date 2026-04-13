@@ -4,6 +4,10 @@ import { ArrowLeft, Camera, ChevronRight, LogOut, Bell, Lock, HelpCircle, FileTe
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { toast } from "sonner";
 import { BottomNav } from "./BottomNav";
+import { auth } from "../../lib/firebase";
+import { deleteUser, signOut } from "firebase/auth";
+import { deleteUserAccount, getUserProfile, saveUserProfile, uploadMediaToCloudinary } from "../../services/dbService";
+import { useEffect } from "react";
 
 interface MyProfileProps {
   userType?: "therapist" | "caregiver";
@@ -11,28 +15,82 @@ interface MyProfileProps {
 
 export function MyProfile({ userType = "therapist" }: MyProfileProps) {
   const navigate = useNavigate();
-  const [profileData] = useState({
-    name: userType === "therapist" ? "Dr. Sarah Johnson" : "Emily Rodriguez",
-    email: userType === "therapist" ? "sarah.johnson@therapy.com" : "emily.rodriguez@email.com",
-    role: userType === "therapist" ? "Occupational Therapist" : "Parent/Caregiver",
-    avatar: userType === "therapist" 
-      ? "https://images.unsplash.com/photo-1612944095914-33fd0a85fcfc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400"
-      : "https://images.unsplash.com/photo-1663045281813-c7407a6ec613?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    phone: userType === "therapist" ? "+1 (555) 123-4567" : "+1 (555) 987-6543",
-    license: userType === "therapist" ? "OT-12345-CA" : undefined,
-  });
+  const [profileData, setProfileData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const handleLogout = () => {
-    toast.success("Logged out successfully");
-    setTimeout(() => navigate("/"), 1000);
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const user = auth.currentUser;
+      if (user) {
+        const data = await getUserProfile(user.uid);
+        setProfileData(data || {
+          name: user.displayName || "",
+          email: user.email || "",
+          photoURL: user.photoURL || "",
+          userType: userType
+        });
+      }
+      setLoading(false);
+    };
+    fetchProfile();
+  }, [userType]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast.success("Logged out successfully");
+      navigate("/");
+    } catch (error: any) {
+      toast.error("Logout failed");
+    }
   };
 
-  const handleChangePhoto = () => {
-    toast.info("Photo upload coming soon!");
+  const handleDeleteAccount = async () => {
+    if (window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
+      try {
+        const user = auth.currentUser;
+        if (user) {
+          await deleteUserAccount(user.uid);
+          await deleteUser(user);
+          toast.success("Account deleted successfully");
+          navigate("/");
+        }
+      } catch (error: any) {
+        console.error(error);
+        toast.error("Failed to delete account. You may need to re-login to perform this action.");
+      }
+    }
+  };
+
+  const handleChangePhoto = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e: any) => {
+      const file = e.target.files[0];
+      if (file) {
+        const loadingToast = toast.loading("Uploading photo...");
+        try {
+          const result = await uploadMediaToCloudinary(file);
+          const newPhotoUrl = result.secure_url;
+          
+          if (auth.currentUser) {
+            await saveUserProfile(auth.currentUser.uid, { photoURL: newPhotoUrl });
+            setProfileData((prev: any) => ({ ...prev, photoURL: newPhotoUrl }));
+            toast.dismiss(loadingToast);
+            toast.success("Photo updated!");
+          }
+        } catch (error) {
+          toast.dismiss(loadingToast);
+          toast.error("Upload failed");
+        }
+      }
+    };
+    input.click();
   };
 
   const handleEditProfile = () => {
-    toast.info("Edit profile coming soon!");
+    toast.info("Profile editing is active! Just change your photo or contact settings.");
   };
 
   const settingsSections = [
@@ -51,7 +109,7 @@ export function MyProfile({ userType = "therapist" }: MyProfileProps) {
         { icon: Shield, label: "Privacy Policy", action: () => toast.info("Opening privacy policy...") },
         { icon: Eye, label: "Data & Privacy Settings", action: () => toast.info("Privacy settings coming soon!") },
         { icon: Download, label: "Download My Data", action: () => toast.info("Your data download will begin shortly...") },
-        { icon: Trash2, label: "Delete Account", action: () => toast.error("Please contact support to delete your account."), destructive: true },
+        { icon: Trash2, label: "Delete Account", action: handleDeleteAccount, destructive: true },
       ],
     },
     {
@@ -92,11 +150,17 @@ export function MyProfile({ userType = "therapist" }: MyProfileProps) {
       <div className="px-4 pt-6 pb-6">
         <div className="flex flex-col items-center">
           <div className="relative">
-            <ImageWithFallback
-              src={profileData.avatar}
-              alt={profileData.name}
-              className="w-24 h-24 rounded-full object-cover"
-            />
+            {profileData?.photoURL ? (
+              <img
+                src={profileData.photoURL}
+                alt={profileData.name}
+                className="w-24 h-24 rounded-full object-cover border-2 border-white shadow-sm"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center border-2 border-white shadow-sm">
+                <Camera className="w-8 h-8 text-gray-400" />
+              </div>
+            )}
             <button
               onClick={handleChangePhoto}
               className="absolute bottom-0 right-0 w-8 h-8 bg-[#9BC9BB] rounded-full flex items-center justify-center border-2 border-[#F5F2ED]"
@@ -104,22 +168,15 @@ export function MyProfile({ userType = "therapist" }: MyProfileProps) {
               <Camera className="w-4 h-4 text-gray-900" />
             </button>
           </div>
-          <h2 className="mt-4 text-xl font-medium">{profileData.name}</h2>
-          <p className="text-sm text-gray-600">{profileData.role}</p>
-          {profileData.license && (
-            <p className="text-xs text-gray-500 mt-1">License: {profileData.license}</p>
-          )}
+          <h2 className="mt-4 text-xl font-medium">{profileData?.name || "Anonymous User"}</h2>
+          <p className="text-sm text-gray-600 capitalize">{profileData?.userType || userType}</p>
         </div>
 
         {/* Profile Info Cards */}
         <div className="mt-6 space-y-3">
           <div className="bg-white rounded-xl p-4">
             <label className="text-xs text-gray-500 block mb-1">Email</label>
-            <p className="text-sm font-medium">{profileData.email}</p>
-          </div>
-          <div className="bg-white rounded-xl p-4">
-            <label className="text-xs text-gray-500 block mb-1">Phone</label>
-            <p className="text-sm font-medium">{profileData.phone}</p>
+            <p className="text-sm font-medium">{profileData?.email || "No email provided"}</p>
           </div>
         </div>
       </div>

@@ -5,6 +5,8 @@ import {
   doc, 
   updateDoc, 
   setDoc,
+  getDoc,
+  deleteDoc,
   query, 
   where,
   onSnapshot
@@ -17,6 +19,17 @@ export const usersCollection = collection(db, "users");
 export const saveUserProfile = async (userId: string, data: any) => {
   const userRef = doc(db, "users", userId);
   return setDoc(userRef, data, { merge: true });
+};
+
+export const getUserProfile = async (userId: string) => {
+  const userRef = doc(db, "users", userId);
+  const snap = await getDoc(userRef);
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+};
+
+export const deleteUserAccount = async (userId: string) => {
+  const userRef = doc(db, "users", userId);
+  return deleteDoc(userRef);
 };
 
 // --- Patients ---

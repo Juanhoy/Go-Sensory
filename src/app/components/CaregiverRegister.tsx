@@ -1,17 +1,83 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, MoreVertical, MapPin, Image } from "lucide-react";
+import { ArrowLeft, MoreVertical, MapPin, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
+import { auth } from "../../lib/firebase";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { saveUserProfile, uploadMediaToCloudinary } from "../../services/dbService";
 
 export function CaregiverRegister() {
   const navigate = useNavigate();
   const [agreed, setAgreed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Form State
+  const [formData, setFormData] = useState({
+    name: "",
+    relationship: "",
+    patientName: "",
+    dateOfBirth: "",
+    email: "",
+    password: "",
+    phone: "",
+    location: "Miami, FL"
+  });
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handlePhotoUpload = async (e: any) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const loadingToast = toast.loading("Uploading photo...");
+      try {
+        const result = await uploadMediaToCloudinary(file);
+        setPhotoUrl(result.secure_url);
+        toast.dismiss(loadingToast);
+        toast.success("Photo uploaded!");
+      } catch (error) {
+        toast.dismiss(loadingToast);
+        toast.error("Upload failed");
+      }
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (agreed) {
+    if (!agreed) return;
+    if (!formData.email || !formData.password) {
+      return toast.error("Email and Password are required");
+    }
+
+    setLoading(true);
+    try {
+      // 1. Create User in Firebase
+      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      const user = userCredential.user;
+
+      // 2. Update Auth Profile
+      await updateProfile(user, {
+        displayName: formData.name,
+        photoURL: photoUrl
+      });
+
+      // 3. Save to Firestore
+      await saveUserProfile(user.uid, {
+        ...formData,
+        photoURL: photoUrl,
+        userType: "caregiver",
+        createdAt: new Date().toISOString()
+      });
+
       toast.success("Account created successfully!");
       navigate("/caregiver/home");
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Registration failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -36,7 +102,9 @@ export function CaregiverRegister() {
             <input
               type="text"
               placeholder="Type your name"
-              className="bg-transparent text-right text-gray-400 outline-none flex-1 ml-4"
+              value={formData.name}
+              onChange={(e) => handleInputChange("name", e.target.value)}
+              className="bg-transparent text-right text-gray-700 outline-none flex-1 ml-4"
             />
           </div>
 
@@ -47,7 +115,9 @@ export function CaregiverRegister() {
             <input
               type="text"
               placeholder="e.g., Mother, Father"
-              className="bg-transparent text-right text-gray-400 outline-none flex-1 ml-4"
+              value={formData.relationship}
+              onChange={(e) => handleInputChange("relationship", e.target.value)}
+              className="bg-transparent text-right text-gray-700 outline-none flex-1 ml-4"
             />
           </div>
 
@@ -58,7 +128,9 @@ export function CaregiverRegister() {
             <input
               type="text"
               placeholder="Child's name"
-              className="bg-transparent text-right text-gray-400 outline-none flex-1 ml-4"
+              value={formData.patientName}
+              onChange={(e) => handleInputChange("patientName", e.target.value)}
+              className="bg-transparent text-right text-gray-700 outline-none flex-1 ml-4"
             />
           </div>
 
@@ -69,7 +141,9 @@ export function CaregiverRegister() {
             <input
               type="text"
               placeholder="June 15, 1995"
-              className="bg-transparent text-right text-gray-400 outline-none flex-1 ml-4"
+              value={formData.dateOfBirth}
+              onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+              className="bg-transparent text-right text-gray-700 outline-none flex-1 ml-4"
             />
           </div>
 
@@ -80,7 +154,22 @@ export function CaregiverRegister() {
             <input
               type="email"
               placeholder="yourmail@gmail.com"
-              className="bg-transparent text-right text-gray-400 outline-none flex-1 ml-4"
+              value={formData.email}
+              onChange={(e) => handleInputChange("email", e.target.value)}
+              className="bg-transparent text-right text-gray-700 outline-none flex-1 ml-4"
+            />
+          </div>
+
+          <div className="h-px bg-gray-200" />
+
+          <div className="flex items-center justify-between">
+            <label className="text-base">Password</label>
+            <input
+              type="password"
+              placeholder="********"
+              value={formData.password}
+              onChange={(e) => handleInputChange("password", e.target.value)}
+              className="bg-transparent text-right text-gray-700 outline-none flex-1 ml-4"
             />
           </div>
 
@@ -91,7 +180,9 @@ export function CaregiverRegister() {
             <input
               type="tel"
               placeholder="+56 458 4485"
-              className="bg-transparent text-right text-gray-400 outline-none flex-1 ml-4"
+              value={formData.phone}
+              onChange={(e) => handleInputChange("phone", e.target.value)}
+              className="bg-transparent text-right text-gray-700 outline-none flex-1 ml-4"
             />
           </div>
         </div>
@@ -99,22 +190,35 @@ export function CaregiverRegister() {
         {/* Location Button */}
         <button
           type="button"
-          onClick={() => toast.info("Location picker opened")}
+          onClick={() => toast.info("Location is set to: " + formData.location)}
           className="w-full bg-[#F0EBE3] rounded-2xl py-4 px-6 flex items-center gap-3"
         >
           <MapPin className="w-6 h-6" />
-          <span className="text-base">Location</span>
+          <span className="text-base">Location (Fixed for MVP)</span>
         </button>
 
         {/* Upload Photo */}
-        <button
-          type="button"
-          onClick={() => toast.info("Photo upload dialog opened")}
-          className="w-full border-2 border-[#5C5C8A] rounded-2xl py-4 px-6 flex items-center justify-center gap-3"
-        >
-          <span className="text-base">Upload patient's photo</span>
-          <Image className="w-6 h-6" />
-        </button>
+        <div className="relative">
+          <input
+            type="file"
+            accept="image/*"
+            id="photo-upload-caregiver"
+            className="hidden"
+            onChange={handlePhotoUpload}
+          />
+          <button
+            type="button"
+            onClick={() => document.getElementById("photo-upload-caregiver")?.click()}
+            className="w-full border-2 border-[#5C5C8A] rounded-2xl py-4 px-6 flex items-center justify-center gap-3 bg-white hover:bg-gray-50 transition-colors"
+          >
+            {photoUrl ? (
+              <img src={photoUrl} className="w-8 h-8 rounded-full object-cover" alt="Preview" />
+            ) : (
+              <ImageIcon className="w-6 h-6" />
+            )}
+            <span className="text-base">{photoUrl ? "Patient Photo Uploaded!" : "Upload patient's photo"}</span>
+          </button>
+        </div>
 
         {/* Terms Checkbox */}
         <div className="flex items-start gap-3">
@@ -132,10 +236,10 @@ export function CaregiverRegister() {
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={!agreed}
+          disabled={!agreed || loading}
           className="w-full bg-[#9BC9BB] rounded-2xl py-4 text-base disabled:opacity-50"
         >
-          Create Account
+          {loading ? "Creating Account..." : "Create Account"}
         </button>
       </form>
     </div>
