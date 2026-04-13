@@ -1,7 +1,7 @@
-import { Home, Users, Library, MessageSquare, Calendar } from "lucide-react";
+import { Home, Users, Library, MessageSquare, Calendar, User as UserIcon } from "lucide-react";
 import { useNavigate, useLocation } from "react-router";
 import { toast } from "sonner";
-import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { auth } from "../../lib/firebase";
 
 interface BottomNavProps {
   userType?: "therapist" | "caregiver";
@@ -10,14 +10,10 @@ interface BottomNavProps {
 export function BottomNav({ userType = "therapist" }: BottomNavProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const user = auth.currentUser;
 
   const isActive = (path: string) => location.pathname === path;
-
   const baseRoute = userType === "therapist" ? "/therapist" : "/caregiver";
-
-  const profileAvatar = userType === "therapist"
-    ? "https://images.unsplash.com/photo-1612944095914-33fd0a85fcfc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200"
-    : "https://images.unsplash.com/photo-1663045281813-c7407a6ec613?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200";
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-[#E8E4DB] border-t border-gray-200">
@@ -67,14 +63,20 @@ export function BottomNav({ userType = "therapist" }: BottomNavProps) {
         <button
           onClick={() => navigate(`${baseRoute}/my-profile`)}
           className={`flex flex-col items-center gap-1 p-1 rounded-full transition-all ${
-            isActive(`${baseRoute}/my-profile`) ? "ring-2 ring-[#9BC9BB] ring-offset-2" : ""
+            isActive(`${baseRoute}/my-profile`) ? "ring-2 ring-[#9BC9BB] ring-offset-2 scale-110" : ""
           }`}
         >
-          <ImageWithFallback
-            src={profileAvatar}
-            alt="Profile"
-            className="w-8 h-8 rounded-full object-cover"
-          />
+          {user?.photoURL ? (
+            <img
+              src={user.photoURL}
+              alt="Profile"
+              className="w-7 h-7 rounded-full object-cover"
+            />
+          ) : (
+            <div className={`p-1.5 rounded-full ${isActive(`${baseRoute}/my-profile`) ? "bg-transparent" : "bg-gray-200"}`}>
+              <UserIcon className="w-5 h-5 text-gray-600" />
+            </div>
+          )}
         </button>
       </div>
     </nav>
