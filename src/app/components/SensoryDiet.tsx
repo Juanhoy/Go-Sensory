@@ -1,10 +1,11 @@
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, Calendar, Check, Plus, UserPlus, Edit2, Trash2, X, Repeat } from "lucide-react";
-import { scheduledExercises, exercises, patients } from "../data/mockData";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { toast } from "sonner";
-import { useState } from "react";
 import { motion } from "motion/react";
+import { auth } from "../../lib/firebase";
+import { getPatientById, listenToTherapistAgenda, getAllExercises, deleteSchedule, updateSchedule } from "../../services/dbService";
 
 const exerciseImages = [
   "https://images.unsplash.com/photo-1763013259112-15f293b6d481?w=400",
@@ -17,16 +18,30 @@ export function SensoryDiet() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const patient = patients.find((p) => p.id === id);
+  const [patient, setPatient] = useState<any>(null);
+  const [dietExercises, setDietExercises] = useState<any[]>([]);
   const patientName = patient?.name || "Patient";
 
-  const dietExercises = scheduledExercises
-    .filter((se) => se.patientId === id)
-    .map((se, idx) => ({
-      ...se,
-      exercise: exercises.find((ex) => ex.id === se.exerciseId)!,
-      image: exerciseImages[idx % exerciseImages.length],
-    }));
+  useEffect(() => {
+    const fetchData = async () => {
+      const user = auth.currentUser;
+      if (!user || !id) return;
+      
+      const pt = await getPatientById(id);
+      setPatient(pt);
+      
+      const allEx = await getAllExercises();
+      
+      listenToTherapistAgenda(user.uid, id, (agenda) => {
+        setDietExercises(agenda.map((a: any, idx: number) => ({
+          ...a,
+          exercise: allEx.find(e => e.id === a.exerciseId) || { name: 'Unknown', duration: 0, type: 'Unknown', description: '' },
+          image: exerciseImages[idx % exerciseImages.length],
+        })));
+      });
+    };
+    fetchData();
+  }, [id]);
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -58,9 +73,26 @@ export function SensoryDiet() {
     }
   };
 
-  const handleSaveRepeat = () => {
-    toast.success(`Repeat schedule updated: ${selectedDays.join(", ")} at ${repeatTime}`);
-    setShowRepeatModal(null);
+  const handleSaveRepeat = async () => {
+    if (!showRepeatModal) return;
+    try {
+      await updateSchedule(showRepeatModal, { repeats: selectedDays });
+      toast.success(`Repeat schedule updated: ${selectedDays.join(", ")}`);
+      setShowRepeatModal(null);
+    } catch(e) {
+      toast.error("Failed to update schedule");
+    }
+  };
+
+  const handleRemoveFromDiet = async (scheduleId: string) => {
+    if(window.confirm("Are you sure you want to remove this exercise from the diet?")) {
+      try {
+        await deleteSchedule(scheduleId);
+        toast.success("Exercise removed from diet");
+      } catch(e) {
+        toast.error("Failed to remove exercise");
+      }
+    }
   };
 
   return (
@@ -163,7 +195,7 @@ export function SensoryDiet() {
                     Repeat On
                   </button>
                   <button
-                    onClick={() => toast.success("Exercise removed from diet")}
+                    onClick={() => handleRemoveFromDiet(item.id)}
                     className="w-full border-2 border-red-300 hover:border-red-400 text-red-600 transition-colors rounded-full py-2 px-4 flex items-center justify-center gap-2 text-sm"
                   >
                     <Trash2 className="w-4 h-4" />

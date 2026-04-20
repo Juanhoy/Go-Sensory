@@ -1,7 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { BottomNav } from "./BottomNav";
+import { auth } from "../../lib/firebase";
+import { 
+  listenToTherapistAgenda, 
+  listenToPatientSchedule, 
+  getAllExercises,
+  getPatientsByCaregiverEmail
+} from "../../services/dbService";
 
 interface CalendarProps {
   userType?: "therapist" | "caregiver";
@@ -13,6 +20,7 @@ interface ScheduledExercise {
   time: string;
   type: "Activate" | "Relaxing" | "Stimulant" | "Concentrate" | "Focus";
   completed: boolean;
+  exerciseId: string;
 }
 
 const typeColors: Record<string, string> = {
@@ -23,27 +31,70 @@ const typeColors: Record<string, string> = {
   Focus: "bg-[#FFB74D]",
 };
 
-const scheduledExercises: Record<number, ScheduledExercise[]> = {
-  8: [
-    { id: "1", name: "Jumping Jacks", time: "9:00 AM", type: "Activate", completed: false },
-    { id: "2", name: "Deep Breathing", time: "2:00 PM", type: "Relaxing", completed: false },
-  ],
-  15: [
-    { id: "3", name: "Nature Walk", time: "10:00 AM", type: "Stimulant", completed: false },
-  ],
-  22: [
-    { id: "4", name: "Yoga Stretches", time: "11:00 AM", type: "Relaxing", completed: false },
-    { id: "5", name: "Building Blocks", time: "3:00 PM", type: "Concentrate", completed: false },
-  ],
-};
-
 export function Calendar({ userType }: CalendarProps) {
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<number | null>(new Date().getDate());
+  const [scheduledExercises, setScheduledExercises] = useState<Record<number, ScheduledExercise[]>>({});
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const allEx = await getAllExercises();
+      
+      const processAgenda = (agenda: any[]) => {
+        const calendarMap: Record<number, ScheduledExercise[]> = {};
+        
+        agenda.forEach(a => {
+          const ex = allEx.find(e => e.id === a.exerciseId);
+          if (!ex) return;
+          
+          // Simplified: assume string 'date' exists or we show it on current day if 'repeats' is active.
+          // For logic sync: We'll place it on the day parsed from date like "2024-05-25" or all days if repeats > 0.
+          const dayMatch = a.date ? parseInt(a.date.split('-')[2]) : 15;
+          const mapDay = (day: number) => {
+            if (!calendarMap[day]) calendarMap[day] = [];
+            calendarMap[day].push({
+              id: a.id,
+              exerciseId: a.exerciseId,
+              name: ex.name,
+              time: a.startTime,
+              type: ex.type as any,
+              completed: a.status === "Done"
+            });
+          };
+
+          if(a.repeats && a.repeats.length > 0) {
+            // For proof of concept, add to every day if repeating Daily
+            if(a.repeats.includes("Daily")) {
+              for(let i = 1; i <= 31; i++) mapDay(i);
+            } else {
+               // We just map it to day 15 visually if it repeats on weird days
+               mapDay(15);
+            }
+          } else if (dayMatch) {
+            mapDay(dayMatch);
+          }
+        });
+        setScheduledExercises(calendarMap);
+      };
+
+      if (userType === "therapist") {
+        listenToTherapistAgenda(user.uid, undefined, processAgenda);
+      } else {
+        const pts = await getPatientsByCaregiverEmail(user.email || "");
+        if (pts.length > 0) {
+          listenToPatientSchedule(pts[0].id, processAgenda);
+        }
+      }
+    };
+    fetchData();
+  }, [userType, month, year]);
 
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
@@ -157,7 +208,10 @@ export function Calendar({ userType }: CalendarProps) {
                     <p className="text-sm text-gray-600">{exercise.time}</p>
                   </div>
                 </div>
-                <button className="px-4 py-2 border-2 border-gray-900 rounded-full text-sm font-medium hover:bg-gray-900 hover:text-white transition-colors">
+                <button 
+                  onClick={() => navigate(`/${userType === "therapist" ? "therapist" : "caregiver"}/exercise/${exercise.exerciseId}`)}
+                  className="px-4 py-2 border-2 border-gray-900 rounded-full text-sm font-medium hover:bg-gray-900 hover:text-white transition-colors"
+                >
                   Start
                 </button>
               </div>

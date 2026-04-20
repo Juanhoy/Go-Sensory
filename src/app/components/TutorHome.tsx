@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { SlidersHorizontal, Bell, AlertTriangle, Check } from "lucide-react";
 import { BottomNav } from "./BottomNav";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { toast } from "sonner";
 import { motion } from "motion/react";
+import { auth } from "../../lib/firebase";
+import { getPatientsByCaregiverEmail, listenToPatientSchedule, getAllExercises, updateSchedule } from "../../services/dbService";
 
 const exerciseImages = [
   "https://images.unsplash.com/photo-1633612605433-d2622726fa25?w=400",
@@ -13,60 +15,38 @@ const exerciseImages = [
   "https://images.unsplash.com/photo-1768844871840-26f6ed6a8e39?w=400",
 ];
 
-const todayExercises = [
-  {
-    id: 1,
-    name: "Jumping Jacks x 20",
-    startTime: "2:30 p.m",
-    duration: 15,
-    type: "Relaxing",
-    description:
-      "This exercise will help the patient to activate his muscles and spend a bit of e...",
-    image: exerciseImages[0],
-    completed: false,
-  },
-  {
-    id: 2,
-    name: "Jumping Jacks x 20",
-    startTime: "2:30 p.m",
-    duration: 15,
-    type: "Stimulate",
-    description:
-      "This exercise will help the patient to activate his muscles and spend a bit of e...",
-    image: exerciseImages[1],
-    completed: false,
-  },
-  {
-    id: 3,
-    name: "Jumping Jacks x 20",
-    startTime: "2:30 p.m",
-    duration: 15,
-    type: "Concentrate",
-    description:
-      "This exercise will help the patient to activate his muscles and spend a bit of e...",
-    image: exerciseImages[2],
-    completed: false,
-  },
-  {
-    id: 4,
-    name: "Jumping Jacks x 20",
-    startTime: "2:30 p.m",
-    duration: 15,
-    type: "Concentrate",
-    description:
-      "This exercise will help the patient to activate his muscles and spend a bit of e...",
-    image: exerciseImages[3],
-    completed: false,
-  },
-];
-
 const moods = ["😊 Happy", "😌 Calm", "😟 Anxious", "😡 Frustrated", "😴 Tired"];
 
 export function TutorHome() {
   const navigate = useNavigate();
   const [showMoodSelector, setShowMoodSelector] = useState(false);
   const [selectedMood, setSelectedMood] = useState("");
-  const [exercises, setExercises] = useState(todayExercises);
+  const [exercises, setExercises] = useState<any[]>([]);
+  const [patientId, setPatientId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      const user = auth.currentUser;
+      if(!user || !user.email) return;
+      
+      const pts = await getPatientsByCaregiverEmail(user.email);
+      if(pts.length > 0) {
+        const pId = pts[0].id;
+        setPatientId(pId);
+        
+        const allEx = await getAllExercises();
+        listenToPatientSchedule(pId, (agenda) => {
+          setExercises(agenda.map((a: any, idx: number) => ({
+            ...a,
+            exerciseDetails: allEx.find(e => e.id === a.exerciseId) || { name: 'Unknown', duration: 0, type: 'Activate', description: '' },
+            image: exerciseImages[idx % exerciseImages.length],
+            completed: a.status === "Done"
+          })));
+        });
+      }
+    };
+    fetchData();
+  }, []);
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -86,13 +66,13 @@ export function TutorHome() {
     navigate("/caregiver/exercise-detail");
   };
 
-  const handleMarkAsDone = (exerciseId: number) => {
-    setExercises((prev) =>
-      prev.map((ex) =>
-        ex.id === exerciseId ? { ...ex, completed: true } : ex
-      )
-    );
-    toast.success("Exercise marked as complete!");
+  const handleMarkAsDone = async (scheduleId: string) => {
+    try {
+      await updateSchedule(scheduleId, { status: "Done" });
+      toast.success("Exercise marked as complete!");
+    } catch(e) {
+      toast.error("Failed to mark as done");
+    }
   };
 
   const handleMoodSelect = (mood: string) => {
@@ -173,25 +153,25 @@ export function TutorHome() {
               onClick={() => navigate(`/caregiver/exercise/${exercise.id}`)}
             >
               <div className="flex-1 min-w-0">
-                <h3 className="mb-2">{exercise.name}</h3>
+                <h3 className="mb-2">{exercise.exerciseDetails?.name}</h3>
                 <p className="text-xs text-gray-600 mb-2">
                   Start Time: {exercise.startTime} &nbsp; Duration:{" "}
-                  {exercise.duration} min
+                  {exercise.exerciseDetails?.duration || 0} min
                 </p>
                 <div
                   className={`inline-block text-xs px-3 py-1 rounded-full mb-2 ${getTypeColor(
-                    exercise.type
+                    exercise.exerciseDetails?.type
                   )}`}
                 >
-                  Exercise Type: {exercise.type}
+                  Exercise Type: {exercise.exerciseDetails?.type}
                 </div>
                 <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                  {exercise.description}
+                  {exercise.exerciseDetails?.description}
                 </p>
                 <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
                   {!exercise.completed && (
                     <button
-                      onClick={() => handleStartExercise(exercise.id)}
+                      onClick={() => handleStartExercise(exercise.exerciseId)}
                       className="px-8 py-2 border-2 border-gray-900 rounded-full text-sm font-medium hover:bg-gray-900 hover:text-white transition-colors whitespace-nowrap"
                     >
                       Start Exercise

@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, Play, Edit2 } from "lucide-react";
 import { exercises } from "../data/mockData";
+import { fallbackExercises } from "../data/fallbackExercises";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 
 const exerciseImages = [
@@ -14,12 +15,16 @@ export function TherapistExerciseDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const exercise = exercises.find((ex) => ex.id === id);
-  const exerciseImage = exerciseImages[exercises.findIndex((ex) => ex.id === id) % exerciseImages.length];
+  let exercise = exercises.find((ex) => ex.id === id);
+  let isFallback = false;
 
   if (!exercise) {
-    return <div>Exercise not found</div>;
+    const fallbackIndex = id ? id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % fallbackExercises.length : 0;
+    exercise = fallbackExercises[fallbackIndex] as any;
+    isFallback = true;
   }
+
+  const exerciseImage = isFallback ? (exercise as any).steps[0]?.image : exerciseImages[Math.max(0, exercises.findIndex((ex) => ex.id === id)) % exerciseImages.length];
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -83,23 +88,43 @@ export function TherapistExerciseDetail() {
             <h3 className="font-medium text-lg">Tutorial</h3>
             <p className="text-gray-700 leading-relaxed">{exercise.description}</p>
             
-            <div className="space-y-3">
-              <h4 className="font-medium">Instructions:</h4>
-              <ol className="list-decimal list-inside space-y-2 text-gray-700">
-                <li>Find a comfortable and quiet space to perform this exercise.</li>
-                <li>Watch the video tutorial carefully before starting.</li>
-                <li>Follow the demonstrated movements at your own pace.</li>
-                <li>Take breaks if needed and stay hydrated.</li>
-                <li>Complete the exercise for the recommended duration.</li>
-              </ol>
+            <div className="space-y-4">
+              <h4 className="font-medium text-lg">Step by Step:</h4>
+              <div className="space-y-6">
+                {(exercise as any).steps ? (exercise as any).steps.map((step: any, index: number) => (
+                  <div key={index} className="flex flex-col gap-3">
+                    <div className="flex gap-3">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#9BC9BB] flex items-center justify-center text-white font-medium">
+                        {index + 1}
+                      </div>
+                      <p className="text-gray-700 pt-1">{step.instruction}</p>
+                    </div>
+                    <div className="rounded-xl overflow-hidden w-full h-48 bg-gray-100 ml-11" style={{ width: 'calc(100% - 2.75rem)' }}>
+                      <ImageWithFallback src={step.image} alt={`Step ${index + 1}`} className="w-full h-full object-cover" />
+                    </div>
+                  </div>
+                )) : (
+                  <ol className="list-decimal list-inside space-y-2 text-gray-700">
+                    <li>Find a comfortable and quiet space to perform this exercise.</li>
+                    <li>Watch the video tutorial carefully before starting.</li>
+                    <li>Follow the demonstrated movements at your own pace.</li>
+                    <li>Take breaks if needed and stay hydrated.</li>
+                    <li>Complete the exercise for the recommended duration.</li>
+                  </ol>
+                )}
+              </div>
             </div>
 
             <div className="space-y-2 pt-4 border-t border-gray-200">
-              <h4 className="font-medium">Benefits:</h4>
+              <h4 className="font-medium text-lg">Benefits:</h4>
               <ul className="list-disc list-inside space-y-1 text-gray-700">
-                <li>Helps improve sensory regulation</li>
-                <li>Promotes better focus and attention</li>
-                <li>Supports overall well-being</li>
+                {((exercise as any).benefits || [
+                  "Helps improve sensory regulation",
+                  "Promotes better focus and attention",
+                  "Supports overall well-being"
+                ]).map((benefit: string, idx: number) => (
+                  <li key={idx}>{benefit}</li>
+                ))}
               </ul>
             </div>
           </div>

@@ -52,6 +52,28 @@ export const getPatientsByTherapist = async (therapistId: string) => {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
+export const getPatientById = async (patientId: string) => {
+  const patientRef = doc(db, "patients", patientId);
+  const snap = await getDoc(patientRef);
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+};
+
+export const updatePatient = async (patientId: string, data: any) => {
+  const patientRef = doc(db, "patients", patientId);
+  return updateDoc(patientRef, data);
+};
+
+export const deletePatient = async (patientId: string) => {
+  const patientRef = doc(db, "patients", patientId);
+  return deleteDoc(patientRef);
+};
+
+export const getPatientsByCaregiverEmail = async (email: string) => {
+  const q = query(patientsCollection, where("tutorContact", "==", email));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
 // --- Exercises ---
 export const exercisesCollection = collection(db, "exercises");
 
@@ -90,6 +112,16 @@ export const scheduleExercise = (scheduleData: {
   repeats: string[];
   status: "Pending" | "Done" | "Missed" | "On Course";
 }) => addDoc(agendaCollection, scheduleData);
+
+export const updateSchedule = (scheduleId: string, data: any) => {
+  const scheduleRef = doc(db, "agendas", scheduleId);
+  return updateDoc(scheduleRef, data);
+};
+
+export const deleteSchedule = (scheduleId: string) => {
+  const scheduleRef = doc(db, "agendas", scheduleId);
+  return deleteDoc(scheduleRef);
+};
 
 export const listenToTherapistAgenda = (therapistId: string, patientId?: string, callback?: (data: any) => void) => {
   let q = query(agendaCollection, where("therapistId", "==", therapistId));
