@@ -111,9 +111,11 @@ export function MyPatients() {
                   className="w-16 h-16 rounded-full object-cover"
                 />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
-                  <User className="w-8 h-8 text-gray-400" />
-                </div>
+                <img
+                  src={["https://images.unsplash.com/photo-1644966825640-bf597f873b89?w=200", "https://images.unsplash.com/photo-1716936210182-d3b7af967b04?w=200", "https://images.unsplash.com/photo-1768844871840-26f6ed6a8e39?w=200"][patient.id.charCodeAt(0) % 3]}
+                  alt={patient.name}
+                  className="w-16 h-16 rounded-full object-cover"
+                />
               )}
               <div className="flex-1 text-left">
                 <h3 className="mb-1">{patient.name}</h3>

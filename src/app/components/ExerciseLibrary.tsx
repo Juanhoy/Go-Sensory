@@ -22,86 +22,7 @@ interface ExerciseLibraryProps {
   userType?: "therapist" | "caregiver";
 }
 
-const exercises: Exercise[] = [
-  {
-    id: "1",
-    name: "Jumping Jacks x 20",
-    duration: "Short Time",
-    time: "15 min",
-    type: "Activate",
-    description: "This exercise will help the patient to activate his muscles and spend a bit of e...",
-    imageUrl: "https://images.unsplash.com/photo-1633612605433-d2622726fa25?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    isDone: false,
-  },
-  {
-    id: "2",
-    name: "Deep Breathing x 10",
-    duration: "Short Time",
-    time: "10 min",
-    type: "Relaxing",
-    description: "This exercise will help the patient to relax and calm down their nervous system...",
-    imageUrl: "https://images.unsplash.com/photo-1558525012-54a093add0f8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    isDone: false,
-  },
-  {
-    id: "3",
-    name: "Building Blocks Challenge",
-    duration: "Medium Time",
-    time: "20 min",
-    type: "Concentrate",
-    description: "This exercise will help the patient to improve focus and fine motor skills...",
-    imageUrl: "https://images.unsplash.com/photo-1763679677841-c5cd0c12b3aa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    isDone: false,
-  },
-  {
-    id: "4",
-    name: "Nature Walk",
-    duration: "Long Time",
-    time: "30 min",
-    type: "Stimulant",
-    description: "This exercise will help the patient to activate his muscles and spend a bit of e...",
-    imageUrl: "https://images.unsplash.com/photo-1772525996574-dbd5dc06f69d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    isDone: false,
-  },
-  {
-    id: "5",
-    name: "Yoga Stretches",
-    duration: "Medium Time",
-    time: "15 min",
-    type: "Relaxing",
-    description: "This exercise will help the patient to relax muscles and improve flexibility...",
-    imageUrl: "https://images.unsplash.com/photo-1765939928623-9d4752a5f462?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    isDone: false,
-  },
-  {
-    id: "6",
-    name: "Dance Party",
-    duration: "Medium Time",
-    time: "20 min",
-    type: "Activate",
-    description: "This exercise will help the patient to activate his muscles and spend a bit of e...",
-    imageUrl: "https://images.unsplash.com/photo-1764071546563-342c0a257ebe?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    isDone: false,
-  },
-  {
-    id: "7",
-    name: "Puzzle Time",
-    duration: "Medium Time",
-    time: "25 min",
-    type: "Focus",
-    description: "This exercise will help the patient to improve concentration and problem-solving...",
-    imageUrl: "https://images.unsplash.com/photo-1763679677841-c5cd0c12b3aa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    isDone: false,
-  },
-];
-
-const typeColors: Record<string, string> = {
-  Activate: "bg-[#E57373] text-white",
-  Relaxing: "bg-[#9BC9BB] text-gray-900",
-  Stimulant: "bg-[#B39DDB] text-white",
-  Concentrate: "bg-[#90A4AE] text-white",
-  Focus: "bg-[#FFB74D] text-gray-900",
-};
+import { fallbackExercises } from "../data/fallbackExercises";
 
 export function ExerciseLibrary({ userType }: ExerciseLibraryProps) {
   const navigate = useNavigate();
@@ -109,17 +30,18 @@ export function ExerciseLibrary({ userType }: ExerciseLibraryProps) {
   const [selectedType, setSelectedType] = useState<string>("All");
   const [exerciseStates, setExerciseStates] = useState<{ [key: string]: boolean }>({});
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+  const [selectedExercise, setSelectedExercise] = useState<any>(null);
 
   const isTherapist = userType === "therapist";
 
   const exerciseTypes = ["All", "Activate", "Relaxing", "Stimulant", "Focus"];
 
-  const filteredExercises = exercises.filter((exercise) => {
+  const filteredExercises = fallbackExercises.filter((exercise) => {
     const matchesSearch = exercise.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = selectedType === "All" || exercise.type === selectedType;
     return matchesSearch && matchesType;
   });
+
 
   const toggleDone = (id: string) => {
     setExerciseStates((prev) => ({
@@ -212,7 +134,7 @@ export function ExerciseLibrary({ userType }: ExerciseLibraryProps) {
             className="bg-[#F0EBE3] rounded-2xl p-4 cursor-pointer hover:bg-[#E8E3D8] transition-colors"
             onClick={() => {
               if (isTherapist) {
-                navigate(`/therapist/exercise/${exercise.id}/edit`);
+                navigate(`/therapist/exercise/${exercise.id}`);
               } else {
                 navigate(`/caregiver/exercise/${exercise.id}`);
               }
@@ -222,13 +144,11 @@ export function ExerciseLibrary({ userType }: ExerciseLibraryProps) {
               <div className="flex-1 min-w-0">
                 <h3 className="font-medium mb-1">{exercise.name}</h3>
                 <p className="text-sm text-gray-600 mb-2">
-                  {exercise.duration} • {exercise.time}
+                  Duration: {exercise.duration} min
                 </p>
                 <div className="mb-2">
                   <span
-                    className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                      typeColors[exercise.type]
-                    }`}
+                    className={`inline-block px-3 py-1 rounded-full text-xs font-medium bg-[#9BC9BB] text-gray-900`}
                   >
                     {exercise.type}
                   </span>
@@ -310,7 +230,7 @@ export function ExerciseLibrary({ userType }: ExerciseLibraryProps) {
                 )}
               </div>
               <ImageWithFallback
-                src={exercise.imageUrl}
+                src={(exercise as any).steps?.[0]?.image || "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&q=80&w=400"}
                 alt={exercise.name}
                 className="w-24 h-24 rounded-xl object-cover flex-shrink-0"
               />

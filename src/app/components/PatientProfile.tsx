@@ -28,9 +28,13 @@ export function PatientProfile() {
   const filters = ["Pending", "Done", "Missed", "On Course"];
 
   useEffect(() => {
-    const fetchData = async () => {
-      const user = auth.currentUser;
-      if (!user || !id) return;
+    let unsubscribeAgenda: (() => void) | undefined;
+    
+    const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
+      if (!user || !id) {
+        setLoading(false);
+        return;
+      }
       
       try {
         const pt = await getPatientById(id);
@@ -40,7 +44,7 @@ export function PatientProfile() {
         const allEx = await getAllExercises();
         setExercisesData(allEx);
         
-        listenToTherapistAgenda(user.uid, id, (agenda) => {
+        unsubscribeAgenda = listenToTherapistAgenda(user.uid, id, (agenda) => {
           setPatientExercises(agenda.map((a: any) => ({
             ...a,
             exercise: allEx.find(e => e.id === a.exerciseId)
@@ -51,8 +55,12 @@ export function PatientProfile() {
       } finally {
         setLoading(false);
       }
+    });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeAgenda) unsubscribeAgenda();
     };
-    fetchData();
   }, [id]);
 
   const handleEditPatient = async (e: React.FormEvent) => {
@@ -110,7 +118,7 @@ export function PatientProfile() {
           <div className="flex items-start gap-4">
             <div className="relative">
               <ImageWithFallback
-                src="https://images.unsplash.com/photo-1644966825640-bf597f873b89?w=200"
+                src={patient.profilePicture || ["https://images.unsplash.com/photo-1644966825640-bf597f873b89?w=200", "https://images.unsplash.com/photo-1716936210182-d3b7af967b04?w=200", "https://images.unsplash.com/photo-1768844871840-26f6ed6a8e39?w=200"][patient.id?.charCodeAt(0) % 3 || 0]}
                 alt={patient.name}
                 className="w-20 h-20 rounded-full object-cover"
               />

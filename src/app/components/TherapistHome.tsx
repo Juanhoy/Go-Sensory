@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { SlidersHorizontal, Bell, X, Plus, UserPlus, Edit2, Trash2 } from "lucide-react";
+import { SlidersHorizontal, Bell, X, Plus, UserPlus, Edit2, Trash2, User } from "lucide-react";
 import { BottomNav } from "./BottomNav";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { toast } from "sonner";
+import { auth } from "../../lib/firebase";
+import { getPatientsByTherapist } from "../../services/dbService";
 
 const recentExercises = [
   {
@@ -38,6 +40,18 @@ const patientImages = [
 export function TherapistHome() {
   const navigate = useNavigate();
   const [showNotification, setShowNotification] = useState(true);
+  const [patients, setPatients] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchPts = async () => {
+      const user = auth.currentUser;
+      if (user) {
+        const pts = await getPatientsByTherapist(user.uid);
+        setPatients(pts);
+      }
+    };
+    fetchPts();
+  }, []);
 
   return (
     <div className="min-h-screen pb-24">
@@ -76,6 +90,39 @@ export function TherapistHome() {
           </button>
         </div>
       )}
+
+      {/* Patient Circles AT TOP */}
+      <div className="px-4 mb-6">
+        <div className="flex items-center gap-3 overflow-x-auto pb-2">
+          {patients.map((pt, idx) => (
+            <button
+              key={pt.id}
+              onClick={() => navigate(`/therapist/patients/${pt.id}`)}
+              className="relative flex-shrink-0"
+            >
+              {pt.profilePicture ? (
+                <ImageWithFallback
+                  src={pt.profilePicture}
+                  alt={pt.name}
+                  className="w-16 h-16 rounded-full object-cover border-2 border-[#9BC9BB]"
+                />
+              ) : (
+                <ImageWithFallback
+                  src={["https://images.unsplash.com/photo-1644966825640-bf597f873b89?w=200", "https://images.unsplash.com/photo-1716936210182-d3b7af967b04?w=200", "https://images.unsplash.com/photo-1768844871840-26f6ed6a8e39?w=200"][pt.id.charCodeAt(0) % 3]}
+                  alt={pt.name}
+                  className="w-16 h-16 rounded-full object-cover border-2 border-[#9BC9BB]"
+                />
+              )}
+            </button>
+          ))}
+          <button
+            onClick={() => navigate("/therapist/patients")}
+            className="w-16 h-16 rounded-full bg-[#9BC9BB] flex items-center justify-center flex-shrink-0 text-gray-900"
+          >
+            <Plus className="w-8 h-8" />
+          </button>
+        </div>
+      </div>
 
       {/* Recent Exercises */}
       <div className="px-4 mb-6">
@@ -152,31 +199,6 @@ export function TherapistHome() {
           <div className="w-2 h-2 rounded-full bg-[#9BC9BB]" />
           <div className="w-2 h-2 rounded-full bg-gray-300" />
           <div className="w-2 h-2 rounded-full bg-gray-300" />
-        </div>
-      </div>
-
-      {/* Patient Circles */}
-      <div className="px-4 mb-6">
-        <div className="flex items-center gap-3">
-          {patientImages.map((img, idx) => (
-            <button
-              key={idx}
-              onClick={() => navigate("/therapist/patients")}
-              className="relative"
-            >
-              <ImageWithFallback
-                src={img}
-                alt={`Patient ${idx + 1}`}
-                className="w-16 h-16 rounded-full object-cover"
-              />
-            </button>
-          ))}
-          <button
-            onClick={() => navigate("/therapist/patients")}
-            className="w-16 h-16 rounded-full bg-[#9BC9BB] flex items-center justify-center"
-          >
-            <Plus className="w-8 h-8" />
-          </button>
         </div>
       </div>
 

@@ -25,8 +25,9 @@ export function TutorHome() {
   const [patientId, setPatientId] = useState<string | null>(null);
   
   useEffect(() => {
-    const fetchData = async () => {
-      const user = auth.currentUser;
+    let unsubscribeAgenda: (() => void) | undefined;
+    
+    const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
       if(!user || !user.email) return;
       
       const pts = await getPatientsByCaregiverEmail(user.email);
@@ -35,7 +36,7 @@ export function TutorHome() {
         setPatientId(pId);
         
         const allEx = await getAllExercises();
-        listenToPatientSchedule(pId, (agenda) => {
+        unsubscribeAgenda = listenToPatientSchedule(pId, (agenda) => {
           setExercises(agenda.map((a: any, idx: number) => ({
             ...a,
             exerciseDetails: allEx.find(e => e.id === a.exerciseId) || { name: 'Unknown', duration: 0, type: 'Activate', description: '' },
@@ -44,8 +45,12 @@ export function TutorHome() {
           })));
         });
       }
+    });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeAgenda) unsubscribeAgenda();
     };
-    fetchData();
   }, []);
 
   const getTypeColor = (type: string) => {
