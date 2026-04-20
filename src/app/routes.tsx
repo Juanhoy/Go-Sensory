@@ -28,7 +28,7 @@ export const router = createBrowserRouter([
       // Therapist routes
       { path: "therapist/register", Component: RegisterTherapist },
       { path: "therapist/home", Component: TherapistHome },
-      { path: "therapist/patients", Component: MyPatients },
+      { path: "therapist/patients", Component: PatientList },
       { path: "therapist/patients/:id", Component: PatientProfile },
       { path: "therapist/patients/:id/diet", Component: SensoryDiet },
       { path: "therapist/patients/:patientId/schedule/:exerciseId", Component: ScheduleExercise },
@@ -39,7 +39,6 @@ export const router = createBrowserRouter([
       { path: "therapist/calendar", element: <Calendar userType="therapist" /> },
       { path: "therapist/messages", element: <Messages userType="therapist" /> },
       { path: "therapist/my-profile", element: <MyProfile userType="therapist" /> },
-      { path: "therapist/patient-list", Component: PatientList },
       // Caregiver routes
       { path: "caregiver/register", Component: CaregiverRegister },
       { path: "caregiver/home", Component: TutorHome },
