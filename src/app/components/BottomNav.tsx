@@ -28,9 +28,9 @@ export function BottomNav({ userType = "therapist" }: BottomNavProps) {
         </button>
         {userType === "therapist" ? (
           <button
-            onClick={() => navigate(`${baseRoute}/patient-list`)}
+            onClick={() => navigate(`${baseRoute}/patients`)}
             className={`flex flex-col items-center gap-1 p-2 rounded-full transition-colors ${
-              isActive(`${baseRoute}/patient-list`) ? "bg-[#9BC9BB]" : ""
+              isActive(`${baseRoute}/patients`) ? "bg-[#9BC9BB]" : ""
             }`}
           >
             <Users className="w-6 h-6" />

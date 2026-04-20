@@ -96,7 +96,7 @@ export function TherapistHome() {
             </button>
           ))}
           <button
-            onClick={() => navigate("/therapist/patient-list")}
+            onClick={() => navigate("/therapist/patients")}
             className="w-16 h-16 rounded-full bg-[#9BC9BB] flex items-center justify-center flex-shrink-0 text-white hover:bg-[#8AB9AA] transition-colors shadow-[0_2px_8px_rgba(155,201,187,0.4)]"
           >
             <Plus className="w-8 h-8" />
