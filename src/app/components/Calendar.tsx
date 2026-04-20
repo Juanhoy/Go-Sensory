@@ -16,6 +16,7 @@ import {
   deleteSchedule
 } from "../../services/dbService";
 import { isExerciseActiveOnDate } from "../utils/scheduleUtils";
+import { ScheduleExerciseForm } from "./ScheduleExerciseForm";
 
 interface CalendarProps {
   userType?: "therapist" | "caregiver";
@@ -164,7 +165,8 @@ export function Calendar({ userType }: CalendarProps) {
       exerciseId: exercisesData.length > 0 ? exercisesData[0].id : fallbackExercises[0].id,
       date: `${year}-${String(month + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`,
       startTime: "09:00",
-      repeat: "None"
+      repeat: "None",
+      repeats: []
     });
     setShowModal(true);
   };
@@ -444,49 +446,16 @@ export function Calendar({ userType }: CalendarProps) {
                 <button onClick={() => setShowModal(false)} className="p-2 bg-gray-100 hover:bg-gray-200 transition-colors rounded-full text-gray-600"><X className="w-5 h-5"/></button>
               </div>
               
-              <form onSubmit={saveModalData} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700">Patient</label>
-                  <select required value={modalData.patientId} onChange={e => setModalData({...modalData, patientId: e.target.value})} className="w-full bg-[#F5F2ED] rounded-xl px-4 py-3 outline-none border border-transparent focus:border-[#9BC9BB] transition-colors appearance-none text-gray-900 font-medium shadow-sm">
-                    <option value="" disabled>Select a patient</option>
-                    {patientsList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700">Exercise</label>
-                  <select required value={modalData.exerciseId} onChange={e => setModalData({...modalData, exerciseId: e.target.value})} className="w-full bg-[#F5F2ED] rounded-xl px-4 py-3 outline-none border border-transparent focus:border-[#9BC9BB] transition-colors appearance-none text-gray-900 font-medium shadow-sm">
-                    {exercisesData.length > 0 ? exercisesData.map((e: any) => <option key={e.id} value={e.id}>{e.name}</option>) : fallbackExercises.map((e: any) => <option key={e.id} value={e.id}>{e.name}</option>)}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-gray-700">Date</label>
-                    <input type="date" required value={modalData.date} onChange={e => setModalData({...modalData, date: e.target.value})} className="w-full bg-[#F5F2ED] rounded-xl px-4 py-3 outline-none border border-transparent focus:border-[#9BC9BB] transition-colors text-gray-900 font-medium shadow-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-gray-700">Start Time</label>
-                    <input type="time" required value={modalData.startTime} onChange={e => setModalData({...modalData, startTime: e.target.value})} className="w-full bg-[#F5F2ED] rounded-xl px-4 py-3 outline-none border border-transparent focus:border-[#9BC9BB] transition-colors text-gray-900 font-medium shadow-sm" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700">Repeat</label>
-                  <select value={modalData.repeat} onChange={e => setModalData({...modalData, repeat: e.target.value})} className="w-full bg-[#F5F2ED] rounded-xl px-4 py-3 outline-none border border-transparent focus:border-[#9BC9BB] transition-colors appearance-none text-gray-900 font-medium shadow-sm">
-                    <option value="None">Does not repeat</option>
-                    <option value="Daily">Every day</option>
-                  </select>
-                </div>
-                
-                <div className="pt-4 flex gap-3">
-                  <button type="submit" className="flex-1 bg-gray-900 text-white rounded-xl py-3.5 font-medium hover:bg-gray-800 shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-colors">
-                    {editMode ? "Save Changes" : "Create Schedule"}
-                  </button>
-                  {editMode && (
-                    <button type="button" onClick={() => handleDelete(modalData.id)} className="px-5 bg-[#FFEFEF] text-red-600 rounded-xl py-3.5 font-medium hover:bg-[#FFDFDF] transition-colors">
-                      <Trash2 className="w-5 h-5 mx-auto" />
-                    </button>
-                  )}
-                </div>
-              </form>
+              <div className="mt-2">
+                <ScheduleExerciseForm 
+                  isModal={true}
+                  editMode={editMode}
+                  scheduleId={modalData.id}
+                  initialData={modalData}
+                  onSuccess={() => setShowModal(false)}
+                  onCancel={() => setShowModal(false)}
+                />
+              </div>
            </div>
         </div>
       )}
