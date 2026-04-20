@@ -57,8 +57,8 @@ export function SensoryDiet() {
   };
 
   const [completedExercises, setCompletedExercises] = useState<string[]>([]);
-  const [startDate, setStartDate] = useState("2024-05-25");
-  const [endDate, setEndDate] = useState("2024-05-25");
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [showRepeatModal, setShowRepeatModal] = useState<string | null>(null);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [repeatTime, setRepeatTime] = useState("10:00");

@@ -378,7 +378,7 @@ export function ExerciseLibrary({ userType }: ExerciseLibraryProps) {
                     <button
                       key={patient.id}
                       onClick={() => {
-                        toast.success(`Assigned "${selectedExercise.name}" to ${patient.name}`);
+                        navigate(`/therapist/patients/${patient.id}/schedule/${selectedExercise.id}`);
                         setShowAssignModal(false);
                       }}
                       className="w-full p-4 bg-[#F0EBE3] hover:bg-[#E5DED3] transition-colors rounded-2xl flex items-center justify-between"
