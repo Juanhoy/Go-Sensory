@@ -20,23 +20,65 @@ export function TherapistHome() {
   const [patients, setPatients] = useState<any[]>([]);
   const [recentExercises, setRecentExercises] = useState<any[]>([]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const user = auth.currentUser;
-      if (user) {
-        const pts = await getPatientsByTherapist(user.uid);
-        setPatients(pts);
-      }
-      
-      const allEx = await getAllExercises();
-      const merged = [...allEx, ...fallbackExercises];
-      setRecentExercises(merged.slice(0, 3));
-    };
+  // Add Patient Modal State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newPatient, setNewPatient] = useState({
+    name: "",
+    age: "",
+    dateOfBirth: "",
+    tutorName: "",
+    tutorContact: "",
+    location: "",
+    status: "Pending"
+  });
+
+  const fetchData = async () => {
+    const user = auth.currentUser;
+    if (user) {
+      const pts = await getPatientsByTherapist(user.uid);
+      setPatients(pts);
+    }
     
+    const allEx = await getAllExercises();
+    const merged = [...allEx, ...fallbackExercises];
+    setRecentExercises(merged.slice(0, 3));
+  };
+
+  useEffect(() => {
     auth.onAuthStateChanged((user) => {
         if (user) fetchData();
     });
   }, []);
+
+  const handleAddPatient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const user = auth.currentUser;
+    if (!user) return;
+    
+    try {
+      const { addPatient } = await import("../../services/dbService");
+      await addPatient({
+        therapistId: user.uid,
+        name: newPatient.name,
+        age: parseInt(newPatient.age) || 0,
+        dateOfBirth: newPatient.dateOfBirth,
+        tutorName: newPatient.tutorName,
+        tutorContact: newPatient.tutorContact,
+        location: newPatient.location,
+        profilePicture: "",
+        status: newPatient.status
+      } as any);
+      
+      toast.success("Patient added successfully!");
+      setShowAddModal(false);
+      setNewPatient({
+        name: "", age: "", dateOfBirth: "", tutorName: "", tutorContact: "", location: "", status: "Pending"
+      });
+      fetchData(); // Refresh circles
+    } catch (error: any) {
+      toast.error(error.message || "Failed to add patient");
+    }
+  };
 
   return (
     <div className="min-h-screen pb-24">
@@ -96,13 +138,73 @@ export function TherapistHome() {
             </button>
           ))}
           <button
-            onClick={() => navigate("/therapist/patients")}
+            onClick={() => setShowAddModal(true)}
             className="w-16 h-16 rounded-full bg-[#9BC9BB] flex items-center justify-center flex-shrink-0 text-white hover:bg-[#8AB9AA] transition-colors shadow-[0_2px_8px_rgba(155,201,187,0.4)]"
           >
             <Plus className="w-8 h-8" />
           </button>
         </div>
       </div>
+
+      {/* Add Patient Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh] shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+              <h2 className="text-lg font-medium text-gray-900">Add New Patient</h2>
+              <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto">
+              <form id="add-patient-form-home" onSubmit={handleAddPatient} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-gray-700">Name</label>
+                  <input required type="text" value={newPatient.name} onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })} className="w-full bg-[#F5F2ED] rounded-xl px-4 py-3 outline-none border border-transparent focus:border-[#9BC9BB] transition-all" placeholder="e.g. John Doe" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5 text-gray-700">Age</label>
+                    <input required type="number" value={newPatient.age} onChange={(e) => setNewPatient({ ...newPatient, age: e.target.value })} className="w-full bg-[#F5F2ED] rounded-xl px-4 py-3 outline-none border border-transparent focus:border-[#9BC9BB] transition-all" placeholder="e.g. 5" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5 text-gray-700">Status</label>
+                    <select value={newPatient.status} onChange={(e) => setNewPatient({ ...newPatient, status: e.target.value })} className="w-full bg-[#F5F2ED] rounded-xl px-4 py-3 outline-none border border-transparent focus:border-[#9BC9BB] transition-all appearance-none cursor-pointer">
+                      <option value="Pending">Pending</option>
+                      <option value="Active">Active</option>
+                      <option value="Calm">Calm</option>
+                      <option value="Overwhelmed">Overwhelmed</option>
+                      <option value="Energetic">Energetic</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-gray-700">Date of Birth</label>
+                  <input required type="text" value={newPatient.dateOfBirth} onChange={(e) => setNewPatient({ ...newPatient, dateOfBirth: e.target.value })} className="w-full bg-[#F5F2ED] rounded-xl px-4 py-3 outline-none border border-transparent focus:border-[#9BC9BB] transition-all" placeholder="e.g. April 15 2019" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-gray-700">Tutor Name</label>
+                  <input required type="text" value={newPatient.tutorName} onChange={(e) => setNewPatient({ ...newPatient, tutorName: e.target.value })} className="w-full bg-[#F5F2ED] rounded-xl px-4 py-3 outline-none border border-transparent focus:border-[#9BC9BB] transition-all" placeholder="e.g. Jane Doe (Mother)" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-gray-700">Tutor Email (Contact)</label>
+                  <input required type="email" value={newPatient.tutorContact} onChange={(e) => setNewPatient({ ...newPatient, tutorContact: e.target.value })} className="w-full bg-[#F5F2ED] rounded-xl px-4 py-3 outline-none border border-transparent focus:border-[#9BC9BB] transition-all" placeholder="caregiver@email.com" />
+                  <p className="text-[11px] text-gray-400 mt-1.5 leading-tight">Must match the email the caregiver uses to register.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-gray-700">Location</label>
+                  <input required type="text" value={newPatient.location} onChange={(e) => setNewPatient({ ...newPatient, location: e.target.value })} className="w-full bg-[#F5F2ED] rounded-xl px-4 py-3 outline-none border border-transparent focus:border-[#9BC9BB] transition-all" placeholder="e.g. Miami, FL" />
+                </div>
+              </form>
+            </div>
+            <div className="p-4 border-t border-gray-100 bg-white sticky bottom-0">
+              <button type="submit" form="add-patient-form-home" className="w-full bg-[#9BC9BB] text-gray-900 rounded-xl py-3.5 font-medium hover:bg-[#8AB9AA] transition-colors shadow-md">
+                Add Patient
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Recent Exercises */}
       <div className="px-4 mb-6">

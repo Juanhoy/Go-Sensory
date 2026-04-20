@@ -15,6 +15,7 @@ import {
   updateSchedule,
   deleteSchedule
 } from "../../services/dbService";
+import { isExerciseActiveOnDate } from "../utils/scheduleUtils";
 
 interface CalendarProps {
   userType?: "therapist" | "caregiver";
@@ -83,39 +84,33 @@ export function Calendar({ userType }: CalendarProps) {
       const processAgenda = (agenda: any[]) => {
         const calendarMap: Record<number, ScheduledExercise[]> = {};
         
-        agenda.forEach(a => {
-          const ex = allEx.find(e => e.id === a.exerciseId) || fallbackExercises.find(e => e.id === a.exerciseId);
-          if (!ex) return;
+        // We need to check every day of the current month
+        for (let d = 1; d <= daysInMonth; d++) {
+          const checkDate = new Date(year, month, d);
           
-          const dayMatch = a.date ? parseInt(a.date.split('-')[2]) : 15;
-          const patientObj = therapistPatients.find(p => p.id === a.patientId);
-          
-          const mapDay = (day: number) => {
-            if (!calendarMap[day]) calendarMap[day] = [];
-            calendarMap[day].push({
-              id: a.id,
-              exerciseId: a.exerciseId,
-              name: ex.name,
-              time: a.startTime || "09:00",
-              date: a.date,
-              type: ex.type as any,
-              completed: a.status === "Done",
-              patientId: a.patientId,
-              patientName: patientObj ? patientObj.name : undefined,
-              repeats: a.repeats
-            });
-          };
+          agenda.forEach(a => {
+            const ex = allEx.find(e => e.id === a.exerciseId) || fallbackExercises.find(e => e.id === a.exerciseId);
+            if (!ex) return;
 
-          if(a.repeats && a.repeats.length > 0) {
-            if(a.repeats.includes("Daily")) {
-              for(let i = 1; i <= 31; i++) mapDay(i);
-            } else {
-               mapDay(dayMatch || 15);
+            if (isExerciseActiveOnDate(a, checkDate)) {
+               const patientObj = therapistPatients.find(p => p.id === a.patientId);
+               if (!calendarMap[d]) calendarMap[d] = [];
+               
+               calendarMap[d].push({
+                 id: a.id,
+                 exerciseId: a.exerciseId,
+                 name: ex.name,
+                 time: a.startTime || "09:00",
+                 date: a.date,
+                 type: ex.type as any,
+                 completed: a.status === "Done",
+                 patientId: a.patientId,
+                 patientName: patientObj ? patientObj.name : undefined,
+                 repeats: a.repeats
+               });
             }
-          } else if (dayMatch) {
-            mapDay(dayMatch);
-          }
-        });
+          });
+        }
         setScheduledExercises(calendarMap);
       };
 

@@ -75,8 +75,11 @@ export function SensoryDiet() {
   const handleSaveRepeat = async () => {
     if (!showRepeatModal) return;
     try {
-      await updateSchedule(showRepeatModal, { repeats: selectedDays });
-      toast.success(`Repeat schedule updated: ${selectedDays.join(", ")}`);
+      await updateSchedule(showRepeatModal, { 
+        repeats: selectedDays,
+        startTime: repeatTime
+      });
+      toast.success(`Repeat schedule updated: ${selectedDays.join(", ")} at ${repeatTime}`);
       setShowRepeatModal(null);
     } catch(e) {
       toast.error("Failed to update schedule");
@@ -181,11 +184,11 @@ export function SensoryDiet() {
                 <div className="space-y-2 mb-4 text-[13px] text-gray-600">
                   <div className="flex items-center gap-2">
                     <CalendarDays className="w-4 h-4 text-gray-400" />
-                    <span>Duration: {item.date} {item.endDate ? `to ${item.endDate}` : ""}</span>
+                    <span>Duration: {item.date} {item.endDate && item.endDate !== item.date ? `to ${item.endDate}` : ""}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Repeat className="w-4 h-4 text-gray-400" />
-                    <span>Repeats: {item.repeats && item.repeats.length > 0 ? item.repeats.join(", ") : "None"}</span>
+                    <span>Repeats: {item.repeats && item.repeats.length > 0 ? (item.repeats.includes("Daily") ? "Every Day" : item.repeats.join(", ")) : "Once"}</span>
                   </div>
                 </div>
 
