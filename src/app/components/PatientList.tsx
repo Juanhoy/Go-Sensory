@@ -1,101 +1,150 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, Search, Plus, MoreVertical } from "lucide-react";
+import { ArrowLeft, Search, Plus, MoreVertical, X } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { BottomNav } from "./BottomNav";
 import { toast } from "sonner";
+import { auth } from "../../lib/firebase";
+import { getPatientsByTherapist, addPatient } from "../../services/dbService";
 
-interface Patient {
-  id: string;
-  name: string;
-  age: number;
-  avatar: string;
-  parent: string;
-  diagnosis: string;
-  lastSession: string;
-  progress: "excellent" | "good" | "needs-attention";
-  upcomingExercises: number;
-}
-
-const patients: Patient[] = [
-  {
-    id: "1",
-    name: "Alex Martinez",
-    age: 7,
-    avatar: "https://images.unsplash.com/photo-1669787210553-44e4f95106ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    parent: "Emily Rodriguez",
-    diagnosis: "Autism Spectrum Disorder",
-    lastSession: "2 days ago",
-    progress: "excellent",
-    upcomingExercises: 3,
-  },
-  {
-    id: "2",
-    name: "Sophia Chen",
-    age: 6,
-    avatar: "https://images.unsplash.com/photo-1754844362137-88441eb7cc6f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    parent: "Michael Chen",
-    diagnosis: "Sensory Processing Disorder",
-    lastSession: "1 day ago",
-    progress: "good",
-    upcomingExercises: 5,
-  },
-  {
-    id: "3",
-    name: "Liam Johnson",
-    age: 8,
-    avatar: "https://images.unsplash.com/photo-1758273241260-f49172d876e3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    parent: "Sarah Johnson",
-    diagnosis: "ADHD",
-    lastSession: "5 days ago",
-    progress: "needs-attention",
-    upcomingExercises: 2,
-  },
-  {
-    id: "4",
-    name: "Emma Davis",
-    age: 5,
-    avatar: "https://images.unsplash.com/photo-1754844362137-88441eb7cc6f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    parent: "Jennifer Davis",
-    diagnosis: "Autism Spectrum Disorder",
-    lastSession: "3 days ago",
-    progress: "good",
-    upcomingExercises: 4,
-  },
-];
-
-const progressColors = {
+const progressColors: Record<string, string> = {
   excellent: "bg-green-100 text-green-700",
   good: "bg-blue-100 text-blue-700",
   "needs-attention": "bg-orange-100 text-orange-700",
 };
 
-const progressLabels = {
+const progressLabels: Record<string, string> = {
   excellent: "Excellent",
   good: "Good",
   "needs-attention": "Needs Attention",
 };
 
+const fallbacks = [
+  "https://images.unsplash.com/photo-1644966825640-bf597f873b89?w=200", 
+  "https://images.unsplash.com/photo-1716936210182-d3b7af967b04?w=200", 
+  "https://images.unsplash.com/photo-1768844871840-26f6ed6a8e39?w=200"
+];
+
 export function PatientList() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterProgress, setFilterProgress] = useState<string | null>(null);
+  const [patients, setPatients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Modal State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newPatient, setNewPatient] = useState({
+    name: "",
+    age: "",
+    dateOfBirth: "",
+    tutorName: "",
+    tutorContact: "",
+    location: "",
+    status: "Pending" // Adding default status
+  });
+
+  useEffect(() => {
+    const fetchPts = async () => {
+      const user = auth.currentUser;
+      if (!user) return setLoading(false);
+      
+      try {
+        const data = await getPatientsByTherapist(user.uid);
+        
+        // Enhance with deterministic UI mock stats if missing
+        const enhanced = data.map(p => {
+          let progress = "good";
+          if (p.status === "Calm" || p.status === "Active") progress = "excellent";
+          else if (p.status === "Overwhelmed" || p.status === "Energetic") progress = "needs-attention";
+          else {
+            const code = p.id.charCodeAt(0) % 3;
+            progress = code === 0 ? "excellent" : code === 1 ? "good" : "needs-attention";
+          }
+          
+          return {
+            ...p,
+            progress,
+            upcomingExercises: (p.id.charCodeAt(p.id.length - 1) % 5) + 1,
+            lastSession: p.status === "Pending" ? "No sessions yet" : `${(p.id.charCodeAt(0) % 5) + 1} days ago`
+          };
+        });
+        
+        setPatients(enhanced);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    auth.onAuthStateChanged((user) => {
+      if (user) fetchPts();
+      else setLoading(false);
+    });
+  }, []);
+
+  const handleAddPatient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const user = auth.currentUser;
+    if (!user) return;
+    
+    try {
+      await addPatient({
+        therapistId: user.uid,
+        name: newPatient.name,
+        age: parseInt(newPatient.age) || 0,
+        dateOfBirth: newPatient.dateOfBirth,
+        tutorName: newPatient.tutorName,
+        tutorContact: newPatient.tutorContact,
+        location: newPatient.location,
+        profilePicture: "",
+        status: newPatient.status
+      } as any);
+      toast.success("Patient added successfully!");
+      setShowAddModal(false);
+      
+      // Refresh list
+      const data = await getPatientsByTherapist(user.uid);
+      const enhanced = data.map(p => {
+          let progress = "good";
+          if (p.status === "Calm" || p.status === "Active") progress = "excellent";
+          else if (p.status === "Overwhelmed" || p.status === "Energetic") progress = "needs-attention";
+          else {
+            const code = p.id.charCodeAt(0) % 3;
+            progress = code === 0 ? "excellent" : code === 1 ? "good" : "needs-attention";
+          }
+          return {
+            ...p,
+            progress,
+            upcomingExercises: (p.id.charCodeAt(p.id.length - 1) % 5) + 1,
+            lastSession: p.status === "Pending" ? "No sessions yet" : `${(p.id.charCodeAt(0) % 5) + 1} days ago`
+          };
+      });
+      setPatients(enhanced);
+      
+      // Reset form
+      setNewPatient({
+        name: "", age: "", dateOfBirth: "", tutorName: "", tutorContact: "", location: "", status: "Pending"
+      });
+    } catch (error: any) {
+      toast.error(error.message || "Failed to add patient");
+    }
+  };
 
   const filteredPatients = patients.filter((patient) => {
     const matchesSearch = 
       patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      patient.parent.toLowerCase().includes(searchQuery.toLowerCase());
+      (patient.tutorName || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = !filterProgress || patient.progress === filterProgress;
     return matchesSearch && matchesFilter;
   });
 
-  const handleAddPatient = () => {
-    toast.info("Add patient functionality coming soon!");
-  };
-
   const handlePatientClick = (patientId: string) => {
     navigate(`/therapist/patients/${patientId}`);
   };
+
+  if (loading) return <div className="p-8 text-center text-gray-500">Loading patients...</div>;
 
   return (
     <div className="min-h-screen bg-[#F5F2ED] pb-24">
@@ -106,7 +155,7 @@ export function PatientList() {
             <ArrowLeft className="w-6 h-6" />
           </button>
           <h1 className="text-lg font-medium">My Patients</h1>
-          <button onClick={handleAddPatient} className="p-2">
+          <button onClick={() => setShowAddModal(true)} className="p-2">
             <Plus className="w-6 h-6 text-[#9BC9BB]" />
           </button>
         </div>
@@ -200,7 +249,7 @@ export function PatientList() {
           >
             <div className="flex items-start gap-3">
               <ImageWithFallback
-                src={patient.avatar}
+                src={patient.profilePicture || fallbacks[patient.id.charCodeAt(0) % 3]}
                 alt={patient.name}
                 className="w-16 h-16 rounded-full object-cover flex-shrink-0"
               />
@@ -218,15 +267,15 @@ export function PatientList() {
                   </button>
                 </div>
                 <p className="text-sm text-gray-500 mb-2">
-                  Age {patient.age} • Parent: {patient.parent}
+                  Age {patient.age} • Parent: {patient.tutorName}
                 </p>
                 <div className="flex items-center gap-2 mb-2">
                   <span
                     className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                      progressColors[patient.progress]
+                      progressColors[patient.progress] || "bg-gray-100 text-gray-700"
                     }`}
                   >
-                    {progressLabels[patient.progress]}
+                    {progressLabels[patient.progress] || patient.progress}
                   </span>
                   <span className="text-xs text-gray-500">
                     {patient.upcomingExercises} exercises scheduled
@@ -244,6 +293,66 @@ export function PatientList() {
       {filteredPatients.length === 0 && (
         <div className="flex flex-col items-center justify-center py-12 px-4">
           <p className="text-gray-500 text-center">No patients found</p>
+        </div>
+      )}
+
+      {/* Add Patient Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+              <h2 className="text-lg font-medium">Add New Patient</h2>
+              <button onClick={() => setShowAddModal(false)} className="p-2">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto">
+              <form id="add-patient-form" onSubmit={handleAddPatient} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Name</label>
+                  <input required type="text" value={newPatient.name} onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })} className="w-full bg-[#E8E4DB] rounded-xl px-4 py-3 outline-none" placeholder="e.g. John Doe" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Age</label>
+                    <input required type="number" value={newPatient.age} onChange={(e) => setNewPatient({ ...newPatient, age: e.target.value })} className="w-full bg-[#E8E4DB] rounded-xl px-4 py-3 outline-none" placeholder="e.g. 5" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Status</label>
+                    <select value={newPatient.status} onChange={(e) => setNewPatient({ ...newPatient, status: e.target.value })} className="w-full bg-[#E8E4DB] rounded-xl px-4 py-3 outline-none">
+                      <option value="Pending">Pending</option>
+                      <option value="Active">Active</option>
+                      <option value="Calm">Calm</option>
+                      <option value="Overwhelmed">Overwhelmed</option>
+                      <option value="Energetic">Energetic</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Date of Birth</label>
+                  <input required type="text" value={newPatient.dateOfBirth} onChange={(e) => setNewPatient({ ...newPatient, dateOfBirth: e.target.value })} className="w-full bg-[#E8E4DB] rounded-xl px-4 py-3 outline-none" placeholder="e.g. April 15 2019" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Tutor Name</label>
+                  <input required type="text" value={newPatient.tutorName} onChange={(e) => setNewPatient({ ...newPatient, tutorName: e.target.value })} className="w-full bg-[#E8E4DB] rounded-xl px-4 py-3 outline-none" placeholder="e.g. Jane Doe (Mother)" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Tutor Email (Contact)</label>
+                  <input required type="email" value={newPatient.tutorContact} onChange={(e) => setNewPatient({ ...newPatient, tutorContact: e.target.value })} className="w-full bg-[#E8E4DB] rounded-xl px-4 py-3 outline-none" placeholder="Must match caregiver's email" />
+                  <p className="text-xs text-gray-500 mt-1">This email must be the one the caregiver uses to register.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Location</label>
+                  <input required type="text" value={newPatient.location} onChange={(e) => setNewPatient({ ...newPatient, location: e.target.value })} className="w-full bg-[#E8E4DB] rounded-xl px-4 py-3 outline-none" placeholder="e.g. Miami, FL" />
+                </div>
+              </form>
+            </div>
+            <div className="p-4 border-t border-gray-100 bg-white sticky bottom-0">
+              <button type="submit" form="add-patient-form" className="w-full bg-[#9BC9BB] text-gray-900 rounded-xl py-3 font-medium hover:bg-[#8AB9AA] transition-colors">
+                Add Patient
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

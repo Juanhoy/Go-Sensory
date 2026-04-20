@@ -82,6 +82,10 @@ export const getAllExercises = async () => {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
+export const addExercise = (exerciseData: any) => {
+  return addDoc(exercisesCollection, exerciseData);
+};
+
 // --- Diet Calendars ---
 export const dietsCollection = collection(db, "diets");
 

@@ -1,47 +1,76 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, Search, MoreVertical, Check, Plus, UserPlus, Edit2, Trash2, X, Repeat, CalendarDays } from "lucide-react";
+import { ArrowLeft, Search, Check, Plus, UserPlus, Edit2, Trash2, X, Repeat, CalendarDays } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { toast } from "sonner";
 import { motion } from "motion/react";
 import { BottomNav } from "./BottomNav";
-import { patients } from "../data/mockData";
+import { fallbackExercises } from "../data/fallbackExercises";
+import { auth } from "../../lib/firebase";
+import { getPatientsByTherapist, addExercise, getAllExercises } from "../../services/dbService";
 
 interface Exercise {
   id: string;
   name: string;
   duration: string;
-  time: string;
-  type: "Activate" | "Relaxing" | "Stimulant" | "Concentrate" | "Focus";
+  time?: string;
+  type: string;
   description: string;
-  imageUrl: string;
-  isDone: boolean;
+  imageUrl?: string;
+  isDone?: boolean;
 }
 
 interface ExerciseLibraryProps {
   userType?: "therapist" | "caregiver";
 }
 
-import { fallbackExercises } from "../data/fallbackExercises";
-
 export function ExerciseLibrary({ userType }: ExerciseLibraryProps) {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("All");
   const [exerciseStates, setExerciseStates] = useState<{ [key: string]: boolean }>({});
+  
+  // Real DB States
+  const [dbExercises, setDbExercises] = useState<any[]>([]);
+  const [patients, setPatients] = useState<any[]>([]);
+  
+  // Modals
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<any>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newExercise, setNewExercise] = useState({ name: "", duration: "", type: "Activate", description: "" });
 
   const isTherapist = userType === "therapist";
-
   const exerciseTypes = ["All", "Activate", "Relaxing", "Stimulant", "Focus"];
 
-  const filteredExercises = fallbackExercises.filter((exercise) => {
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const allEx = await getAllExercises();
+        setDbExercises(allEx);
+        
+        const user = auth.currentUser;
+        if (user && isTherapist) {
+          const pts = await getPatientsByTherapist(user.uid);
+          setPatients(pts);
+        }
+      } catch (e) {
+        console.error("Failed to fetch library data", e);
+      }
+    };
+    
+    auth.onAuthStateChanged((user) => {
+      if (user) fetchData();
+    });
+  }, [isTherapist]);
+
+  const allMergedExercises = [...fallbackExercises, ...dbExercises];
+
+  const filteredExercises = allMergedExercises.filter((exercise) => {
     const matchesSearch = exercise.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = selectedType === "All" || exercise.type === selectedType;
     return matchesSearch && matchesType;
   });
-
 
   const toggleDone = (id: string) => {
     setExerciseStates((prev) => ({
@@ -60,16 +89,26 @@ export function ExerciseLibrary({ userType }: ExerciseLibraryProps) {
     setShowAssignModal(true);
   };
 
+  const submitNewExercise = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await addExercise({ ...newExercise, time: `${newExercise.duration} min` });
+      toast.success("Exercise created!");
+      setShowCreateModal(false);
+      setNewExercise({ name: "", duration: "", type: "Activate", description: "" });
+      const allEx = await getAllExercises();
+      setDbExercises(allEx);
+    } catch(err) {
+      toast.error("Failed to create exercise");
+    }
+  };
+
   const handleEditExercise = (exercise: Exercise) => {
     toast.info(`Edit feature coming soon for: ${exercise.name}`);
   };
 
   const handleDeleteExercise = (exerciseId: string) => {
     toast.success("Exercise deleted successfully");
-  };
-
-  const handleCreateExercise = () => {
-    toast.info("Create exercise feature coming soon");
   };
 
   return (
@@ -82,7 +121,7 @@ export function ExerciseLibrary({ userType }: ExerciseLibraryProps) {
           </button>
           <h1 className="text-lg font-medium">Exercise Library</h1>
           {isTherapist ? (
-            <button onClick={handleCreateExercise} className="p-2">
+            <button onClick={() => setShowCreateModal(true)} className="p-2 text-[#9BC9BB]">
               <Plus className="w-6 h-6" />
             </button>
           ) : (
@@ -144,7 +183,7 @@ export function ExerciseLibrary({ userType }: ExerciseLibraryProps) {
               <div className="flex-1 min-w-0">
                 <h3 className="font-medium mb-1">{exercise.name}</h3>
                 <p className="text-sm text-gray-600 mb-2">
-                  Duration: {exercise.duration} min
+                  Duration: {exercise.duration || exercise.time || "N/A"}
                 </p>
                 <div className="mb-2">
                   <span
@@ -247,6 +286,51 @@ export function ExerciseLibrary({ userType }: ExerciseLibraryProps) {
         </div>
       )}
 
+      {/* Create Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex flex-col justify-end">
+          <div className="bg-white rounded-t-3xl w-full p-6 animate-slide-up max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-medium">Create New Exercise</h2>
+              <button onClick={() => setShowCreateModal(false)} className="p-2">
+                <X className="w-5 h-5 pointer-events-none" />
+              </button>
+            </div>
+            <form onSubmit={submitNewExercise} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Name</label>
+                <input required type="text" value={newExercise.name} onChange={(e) => setNewExercise({ ...newExercise, name: e.target.value })} className="w-full bg-[#F5F2ED] rounded-xl px-4 py-3 outline-none" placeholder="Exercise Name" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Duration (min)</label>
+                  <input required type="number" value={newExercise.duration} onChange={(e) => setNewExercise({ ...newExercise, duration: e.target.value })} className="w-full bg-[#F5F2ED] rounded-xl px-4 py-3 outline-none" placeholder="15" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Type</label>
+                  <select value={newExercise.type} onChange={(e) => setNewExercise({ ...newExercise, type: e.target.value })} className="w-full bg-[#F5F2ED] rounded-xl px-4 py-3 outline-none">
+                    <option value="Activate">Activate</option>
+                    <option value="Relaxing">Relaxing</option>
+                    <option value="Stimulant">Stimulant</option>
+                    <option value="Focus">Focus</option>
+                    <option value="Concentrate">Concentrate</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Description</label>
+                <textarea required rows={3} value={newExercise.description} onChange={(e) => setNewExercise({ ...newExercise, description: e.target.value })} className="w-full bg-[#F5F2ED] rounded-xl px-4 py-3 outline-none" placeholder="Provide instructions..." />
+              </div>
+              <div className="pt-2">
+                <button type="submit" className="w-full bg-[#9BC9BB] text-gray-900 rounded-xl py-3 font-medium hover:bg-[#8AB9AA]">
+                  Save Exercise
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Assignment Modal */}
       {showAssignModal && selectedExercise && (
         <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50" onClick={() => setShowAssignModal(false)}>
@@ -267,7 +351,7 @@ export function ExerciseLibrary({ userType }: ExerciseLibraryProps) {
 
             <div className="mb-6 p-4 bg-[#F0EBE3] rounded-2xl">
               <h3 className="font-medium mb-1">{selectedExercise.name}</h3>
-              <p className="text-sm text-gray-600">{selectedExercise.duration} • {selectedExercise.time}</p>
+              <p className="text-sm text-gray-600">{selectedExercise.duration || selectedExercise.time || "N/A"}</p>
             </div>
 
             <div className="mb-6">
@@ -289,22 +373,26 @@ export function ExerciseLibrary({ userType }: ExerciseLibraryProps) {
             <div className="mb-6">
               <h3 className="font-medium mb-3">Select Patient</h3>
               <div className="space-y-2">
-                {patients.map((patient) => (
-                  <button
-                    key={patient.id}
-                    onClick={() => {
-                      toast.success(`Assigned "${selectedExercise.name}" to ${patient.name}`);
-                      setShowAssignModal(false);
-                    }}
-                    className="w-full p-4 bg-[#F0EBE3] hover:bg-[#E5DED3] transition-colors rounded-2xl flex items-center justify-between"
-                  >
-                    <div className="text-left">
-                      <p className="font-medium">{patient.name}</p>
-                      <p className="text-sm text-gray-600">Age {patient.age} • {patient.location}</p>
-                    </div>
-                    <UserPlus className="w-5 h-5 text-gray-600" />
-                  </button>
-                ))}
+                {patients.length > 0 ? (
+                  patients.map((patient) => (
+                    <button
+                      key={patient.id}
+                      onClick={() => {
+                        toast.success(`Assigned "${selectedExercise.name}" to ${patient.name}`);
+                        setShowAssignModal(false);
+                      }}
+                      className="w-full p-4 bg-[#F0EBE3] hover:bg-[#E5DED3] transition-colors rounded-2xl flex items-center justify-between"
+                    >
+                      <div className="text-left">
+                        <p className="font-medium">{patient.name}</p>
+                        <p className="text-sm text-gray-600">Age {patient.age} • {patient.location || patient.tutorName}</p>
+                      </div>
+                      <UserPlus className="w-5 h-5 text-gray-600" />
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-center py-4">No patients registered. Add one from the Patients tab first.</p>
+                )}
               </div>
             </div>
           </motion.div>
