@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { ArrowLeft, ChevronLeft, ChevronRight, Plus, User, Edit2, Trash2, X, Calendar as CalendarIcon } from "lucide-react";
 import { BottomNav } from "./BottomNav";
 import { toast } from "sonner";
@@ -43,13 +43,16 @@ const typeColors: Record<string, string> = {
 
 export function Calendar({ userType }: CalendarProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const initialPatientId = location.state?.patientId || "all";
+  
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<number>(new Date().getDate());
   const [scheduledExercises, setScheduledExercises] = useState<Record<number, ScheduledExercise[]>>({});
   
   // New States
   const [viewMode, setViewMode] = useState<"Month" | "Week" | "Day">("Month");
-  const [selectedPatientId, setSelectedPatientId] = useState<string>("all");
+  const [selectedPatientId, setSelectedPatientId] = useState<string>(initialPatientId);
   const [patientsList, setPatientsList] = useState<any[]>([]);
   const [exercisesData, setExercisesData] = useState<any[]>([]);
   
